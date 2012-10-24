@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h>
 #include <tcl.h>
 #include <complex.h>
 #include <fftw3.h>
@@ -13,11 +14,11 @@ int fft(ClientData cdata, Tcl_Interp* interp, int objc, struct Tcl_Obj* const ob
         Tcl_AppendResult(interp, "Couldn't get list length");
         return TCL_ERROR;
     }
-
+    
     int newCount = count/2+1;
     double* in = fftw_malloc(sizeof(double) * count);
     complex* out = fftw_malloc(sizeof(complex) * newCount);
-    fftw_plan plan = fftw_plan_dft_r2c_1d(count, in, out, FFTW_ESTIMATE);
+    fftw_plan plan = fftw_plan_dft_r2c_1d(count, in, out, FFTW_MEASURE);
     
     for ( size_t i=0; i<count; ++i ) {
         Tcl_Obj* x;
@@ -30,7 +31,7 @@ int fft(ClientData cdata, Tcl_Interp* interp, int objc, struct Tcl_Obj* const ob
             return TCL_ERROR;
         }
     }
-
+    
     fftw_execute(plan);
     
     list = Tcl_NewListObj(0, NULL);
@@ -59,28 +60,41 @@ int fft(ClientData cdata, Tcl_Interp* interp, int objc, struct Tcl_Obj* const ob
     fftw_destroy_plan(plan);
     fftw_free(in);
     fftw_free(out);
-
+    
     return TCL_OK;
 }
 
 int ffti(ClientData cdata, Tcl_Interp* interp, int objc, struct Tcl_Obj* const objv[]) {
     char willScale = 0;
-    if ( objc != 2 ) {
+    if ( objc < 2 || objc > 3 ) {
         Tcl_WrongNumArgs(interp, objc, objv, "ffti data");
         return TCL_ERROR;
     }
-    Tcl_Obj* list = objv[1];
+    else if ( objc == 3 ) {
+        int len;
+        const char* check = Tcl_GetStringFromObj(objv[1], &len);
+        if ( !strcmp(check, "scale") ) {
+            willScale = 1;
+        }
+    }
+    Tcl_Obj* list;
+    if ( willScale )
+        list = objv[2];
+    else
+        list = objv[1];
 
     int count;
     if ( Tcl_ListObjLength(interp, list, &count) != TCL_OK ) {
         Tcl_AppendResult(interp, "Couldn't get list length");
         return TCL_ERROR;
     }
-
+    
     int newCount = 2*(count-1);
     complex* in = fftw_malloc(sizeof(complex) * count);
     double* out = fftw_malloc(sizeof(double) * newCount);
-    fftw_plan plan = fftw_plan_dft_c2r_1d(newCount, in, out, FFTW_ESTIMATE);
+    fftw_plan plan = fftw_plan_dft_c2r_1d(newCount, in, out, FFTW_MEASURE);
+
+    double scale = (willScale) ? (double)newCount : 1;
 
     for ( size_t i=0; i<count; ++i ) {
         Tcl_Obj* x;
@@ -108,24 +122,24 @@ int ffti(ClientData cdata, Tcl_Interp* interp, int objc, struct Tcl_Obj* const o
         }
         in[i] = Re + Im * I;
     }
-
+    
     fftw_execute(plan);
-
+    
     list = Tcl_NewListObj(0, NULL);
     Tcl_Obj* X;
     for ( size_t i=0; i<newCount; ++i ) {
-        X = Tcl_NewDoubleObj(out[i]);
+        X = Tcl_NewDoubleObj(out[i]/scale);
         if ( Tcl_ListObjAppendElement(interp, list, X) != TCL_OK ) {
             Tcl_AppendResult(interp, "Couldn't append real result");
             return TCL_ERROR;
         }
     }
     Tcl_SetObjResult(interp, list);
-
+    
     fftw_destroy_plan(plan);
     fftw_free(in);
     fftw_free(out);
-
+    
     return TCL_OK;
 }
 
