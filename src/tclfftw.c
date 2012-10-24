@@ -5,8 +5,10 @@
 #include <fftw3.h>
 
 int fft(ClientData cdata, Tcl_Interp* interp, int objc, struct Tcl_Obj* const objv[]) {
-    if ( objc != 2 )
+    if ( objc != 2 ) {
         Tcl_WrongNumArgs(interp, objc, objv, "fft data");
+        return TCL_ERROR;
+    }
     Tcl_Obj* list = objv[1];
 
     int count;
@@ -14,12 +16,12 @@ int fft(ClientData cdata, Tcl_Interp* interp, int objc, struct Tcl_Obj* const ob
         Tcl_AppendResult(interp, "Couldn't get list length");
         return TCL_ERROR;
     }
-    
+
     int newCount = count/2+1;
     double* in = fftw_malloc(sizeof(double) * count);
     complex* out = fftw_malloc(sizeof(complex) * newCount);
     fftw_plan plan = fftw_plan_dft_r2c_1d(count, in, out, FFTW_MEASURE);
-    
+
     for ( size_t i=0; i<count; ++i ) {
         Tcl_Obj* x;
         if ( Tcl_ListObjIndex(interp, list, i, &x) != TCL_OK ) {
@@ -31,9 +33,9 @@ int fft(ClientData cdata, Tcl_Interp* interp, int objc, struct Tcl_Obj* const ob
             return TCL_ERROR;
         }
     }
-    
+
     fftw_execute(plan);
-    
+
     list = Tcl_NewListObj(0, NULL);
     Tcl_Obj* Re;
     Tcl_Obj* Im;
@@ -56,11 +58,11 @@ int fft(ClientData cdata, Tcl_Interp* interp, int objc, struct Tcl_Obj* const ob
         }
     }
     Tcl_SetObjResult(interp, list);
-    
+
     fftw_destroy_plan(plan);
     fftw_free(in);
     fftw_free(out);
-    
+
     return TCL_OK;
 }
 
@@ -88,7 +90,7 @@ int ffti(ClientData cdata, Tcl_Interp* interp, int objc, struct Tcl_Obj* const o
         Tcl_AppendResult(interp, "Couldn't get list length");
         return TCL_ERROR;
     }
-    
+
     int newCount = 2*(count-1);
     complex* in = fftw_malloc(sizeof(complex) * count);
     double* out = fftw_malloc(sizeof(double) * newCount);
@@ -122,9 +124,9 @@ int ffti(ClientData cdata, Tcl_Interp* interp, int objc, struct Tcl_Obj* const o
         }
         in[i] = Re + Im * I;
     }
-    
+
     fftw_execute(plan);
-    
+
     list = Tcl_NewListObj(0, NULL);
     Tcl_Obj* X;
     for ( size_t i=0; i<newCount; ++i ) {
@@ -135,11 +137,11 @@ int ffti(ClientData cdata, Tcl_Interp* interp, int objc, struct Tcl_Obj* const o
         }
     }
     Tcl_SetObjResult(interp, list);
-    
+
     fftw_destroy_plan(plan);
     fftw_free(in);
     fftw_free(out);
-    
+
     return TCL_OK;
 }
 
