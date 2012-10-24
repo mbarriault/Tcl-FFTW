@@ -13,4 +13,4 @@ switch [platform] {
     }
 }
 
-package ifneeded fftw 0.5.0 [list load [file join $dir libTclFFTW.$ext] fftw]
+package ifneeded fftw 1.0 [list load [file join $dir libTclFFTW.$ext] tclfftw]
