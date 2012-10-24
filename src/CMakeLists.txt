@@ -1,4 +1,4 @@
-add_definitions("-O3")
+add_definitions("-O3 -std=c99")
 
 include_directories(/usr/include/tcl8.5)
 include_directories($PROJECT_SOURCE_DIR/src)
