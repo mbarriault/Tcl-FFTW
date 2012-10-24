@@ -6,7 +6,7 @@
 
 int fft(ClientData cdata, Tcl_Interp* interp, int objc, struct Tcl_Obj* const objv[]) {
     if ( objc != 2 ) {
-        Tcl_WrongNumArgs(interp, objc, objv, "fft data");
+        Tcl_WrongNumArgs(interp, objc, objv, "data");
         return TCL_ERROR;
     }
     Tcl_Obj* list = objv[1];
@@ -67,23 +67,11 @@ int fft(ClientData cdata, Tcl_Interp* interp, int objc, struct Tcl_Obj* const ob
 }
 
 int ffti(ClientData cdata, Tcl_Interp* interp, int objc, struct Tcl_Obj* const objv[]) {
-    char willScale = 0;
-    if ( objc < 2 || objc > 3 ) {
-        Tcl_WrongNumArgs(interp, objc, objv, "ffti data");
+    if ( objc != 2 ) {
+        Tcl_WrongNumArgs(interp, objc, objv, "data");
         return TCL_ERROR;
     }
-    else if ( objc == 3 ) {
-        int len;
-        const char* check = Tcl_GetStringFromObj(objv[1], &len);
-        if ( !strcmp(check, "scale") ) {
-            willScale = 1;
-        }
-    }
-    Tcl_Obj* list;
-    if ( willScale )
-        list = objv[2];
-    else
-        list = objv[1];
+    Tcl_Obj* list = objv[1];
 
     int count;
     if ( Tcl_ListObjLength(interp, list, &count) != TCL_OK ) {
@@ -95,8 +83,6 @@ int ffti(ClientData cdata, Tcl_Interp* interp, int objc, struct Tcl_Obj* const o
     complex* in = fftw_malloc(sizeof(complex) * count);
     double* out = fftw_malloc(sizeof(double) * newCount);
     fftw_plan plan = fftw_plan_dft_c2r_1d(newCount, in, out, FFTW_MEASURE);
-
-    double scale = (willScale) ? (double)newCount : 1;
 
     for ( size_t i=0; i<count; ++i ) {
         Tcl_Obj* x;
@@ -130,7 +116,7 @@ int ffti(ClientData cdata, Tcl_Interp* interp, int objc, struct Tcl_Obj* const o
     list = Tcl_NewListObj(0, NULL);
     Tcl_Obj* X;
     for ( size_t i=0; i<newCount; ++i ) {
-        X = Tcl_NewDoubleObj(out[i]/scale);
+        X = Tcl_NewDoubleObj(out[i]/newCount);
         if ( Tcl_ListObjAppendElement(interp, list, X) != TCL_OK ) {
             Tcl_AppendResult(interp, "Couldn't append real result");
             return TCL_ERROR;
