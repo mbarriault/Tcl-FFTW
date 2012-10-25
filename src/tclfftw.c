@@ -4,6 +4,14 @@
 #include <complex.h>
 #include <fftw3.h>
 
+static fftw_plan* fplan = 0;
+static fftw_plan* bplan = 0;
+static double* fin = 0;
+static complex* fout = 0;
+static complex* bin = 0;
+static double* bout = 0;
+static int storedCount = 0;
+
 int fft(ClientData cdata, Tcl_Interp* interp, int objc, struct Tcl_Obj* const objv[]) {
     if ( objc != 2 ) {
         Tcl_WrongNumArgs(interp, objc, objv, "data");
@@ -16,11 +24,26 @@ int fft(ClientData cdata, Tcl_Interp* interp, int objc, struct Tcl_Obj* const ob
         Tcl_AppendResult(interp, "Couldn't get list length");
         return TCL_ERROR;
     }
-
     int newCount = count/2+1;
-    double* in = fftw_malloc(sizeof(double) * count);
-    complex* out = fftw_malloc(sizeof(complex) * newCount);
-    fftw_plan plan = fftw_plan_dft_r2c_1d(count, in, out, FFTW_MEASURE);
+
+    if ( count != storedCount ) {
+        storedCount = 0;
+        if ( fplan ) {
+            fftw_destroy_plan(*fplan);
+            fftw_free(fplan);
+        }
+        if ( fin ) fftw_free(fin);
+        if ( fout ) fftw_free(fout);
+    }
+
+    if ( !storedCount ) {
+        storedCount = count;
+        fin = fftw_malloc(sizeof(double) * count);
+        fout = fftw_malloc(sizeof(complex) * newCount);
+        fplan = fftw_malloc(sizeof(fftw_plan));
+        *fplan = fftw_plan_dft_r2c_1d(count, fin, fout, FFTW_MEASURE);
+        printf("Gotta make new plan!\n");
+    }
 
     for ( size_t i=0; i<count; ++i ) {
         Tcl_Obj* x;
@@ -28,21 +51,21 @@ int fft(ClientData cdata, Tcl_Interp* interp, int objc, struct Tcl_Obj* const ob
             Tcl_AppendResult(interp, "Invalid index");
             return TCL_ERROR;
         }
-        if ( Tcl_GetDoubleFromObj(interp, x, &in[i]) != TCL_OK ) {
+        if ( Tcl_GetDoubleFromObj(interp, x, &fin[i]) != TCL_OK ) {
             Tcl_AppendResult(interp, "Not a double");
             return TCL_ERROR;
         }
     }
 
-    fftw_execute(plan);
+    fftw_execute(*fplan);
 
     list = Tcl_NewListObj(0, NULL);
     Tcl_Obj* Re;
     Tcl_Obj* Im;
     Tcl_Obj* C;
     for ( size_t i=0; i<newCount; ++i ) {
-        Re = Tcl_NewDoubleObj(creal(out[i]));
-        Im = Tcl_NewDoubleObj(cimag(out[i]));
+        Re = Tcl_NewDoubleObj(creal(fout[i]));
+        Im = Tcl_NewDoubleObj(cimag(fout[i]));
         C = Tcl_NewListObj(0, NULL);
         if ( Tcl_ListObjAppendElement(interp, C, Re) != TCL_OK ) {
             Tcl_AppendResult(interp, "Couldn't append real part");
@@ -59,10 +82,6 @@ int fft(ClientData cdata, Tcl_Interp* interp, int objc, struct Tcl_Obj* const ob
     }
     Tcl_SetObjResult(interp, list);
 
-    fftw_destroy_plan(plan);
-    fftw_free(in);
-    fftw_free(out);
-
     return TCL_OK;
 }
 
@@ -78,11 +97,25 @@ int ffti(ClientData cdata, Tcl_Interp* interp, int objc, struct Tcl_Obj* const o
         Tcl_AppendResult(interp, "Couldn't get list length");
         return TCL_ERROR;
     }
-
     int newCount = 2*(count-1);
-    complex* in = fftw_malloc(sizeof(complex) * count);
-    double* out = fftw_malloc(sizeof(double) * newCount);
-    fftw_plan plan = fftw_plan_dft_c2r_1d(newCount, in, out, FFTW_MEASURE);
+
+    if ( newCount != storedCount ) {
+        storedCount = 0;
+        if ( bplan ) {
+            fftw_destroy_plan(*bplan);
+            fftw_free(bplan);
+        }
+        if ( bin ) fftw_free(bin);
+        if ( bout ) fftw_free(bout);
+    }
+
+    if ( !storedCount ) {
+        storedCount = newCount;
+        bin = fftw_malloc(sizeof(complex) * count);
+        bout = fftw_malloc(sizeof(double) * newCount);
+        bplan = fftw_malloc(sizeof(fftw_plan));
+        *bplan = fftw_plan_dft_c2r_1d(newCount, bin, bout, FFTW_MEASURE);
+    }
 
     for ( size_t i=0; i<count; ++i ) {
         Tcl_Obj* x;
@@ -108,25 +141,21 @@ int ffti(ClientData cdata, Tcl_Interp* interp, int objc, struct Tcl_Obj* const o
             Tcl_AppendResult(interp, "Imag part not a double");
             return TCL_ERROR;
         }
-        in[i] = Re + Im * I;
+        bin[i] = Re + Im * I;
     }
 
-    fftw_execute(plan);
+    fftw_execute(*bplan);
 
     list = Tcl_NewListObj(0, NULL);
     Tcl_Obj* X;
     for ( size_t i=0; i<newCount; ++i ) {
-        X = Tcl_NewDoubleObj(out[i]/newCount);
+        X = Tcl_NewDoubleObj(bout[i]/newCount);
         if ( Tcl_ListObjAppendElement(interp, list, X) != TCL_OK ) {
             Tcl_AppendResult(interp, "Couldn't append real result");
             return TCL_ERROR;
         }
     }
     Tcl_SetObjResult(interp, list);
-
-    fftw_destroy_plan(plan);
-    fftw_free(in);
-    fftw_free(out);
 
     return TCL_OK;
 }
