@@ -4,15 +4,12 @@
 #include <complex.h>
 #include <fftw3.h>
 
-static fftw_plan* fplan = 0;
-static fftw_plan* bplan = 0;
-static double* fin = 0;
-static complex* fout = 0;
-static complex* bin = 0;
-static double* bout = 0;
-static int storedCount = 0;
 
 int fft(ClientData cdata, Tcl_Interp* interp, int objc, struct Tcl_Obj* const objv[]) {
+    static fftw_plan* fplan = 0;
+    static double* fin = 0;
+    static complex* fout = 0;
+    static int storedCount = 0;
     if ( objc != 2 ) {
         Tcl_WrongNumArgs(interp, objc, objv, "data");
         return TCL_ERROR;
@@ -31,9 +28,12 @@ int fft(ClientData cdata, Tcl_Interp* interp, int objc, struct Tcl_Obj* const ob
         if ( fplan ) {
             fftw_destroy_plan(*fplan);
             fftw_free(fplan);
+            fplan = 0;
         }
         if ( fin ) fftw_free(fin);
+        fin = 0;
         if ( fout ) fftw_free(fout);
+        fout = 0;
     }
 
     if ( !storedCount ) {
@@ -42,7 +42,6 @@ int fft(ClientData cdata, Tcl_Interp* interp, int objc, struct Tcl_Obj* const ob
         fout = fftw_malloc(sizeof(complex) * newCount);
         fplan = fftw_malloc(sizeof(fftw_plan));
         *fplan = fftw_plan_dft_r2c_1d(count, fin, fout, FFTW_MEASURE);
-        printf("Gotta make new plan!\n");
     }
 
     for ( size_t i=0; i<count; ++i ) {
@@ -86,6 +85,10 @@ int fft(ClientData cdata, Tcl_Interp* interp, int objc, struct Tcl_Obj* const ob
 }
 
 int ffti(ClientData cdata, Tcl_Interp* interp, int objc, struct Tcl_Obj* const objv[]) {
+    static fftw_plan* bplan = 0;
+    static complex* bin = 0;
+    static double* bout = 0;
+    static int storedCount = 0;
     if ( objc != 2 ) {
         Tcl_WrongNumArgs(interp, objc, objv, "data");
         return TCL_ERROR;
@@ -104,9 +107,12 @@ int ffti(ClientData cdata, Tcl_Interp* interp, int objc, struct Tcl_Obj* const o
         if ( bplan ) {
             fftw_destroy_plan(*bplan);
             fftw_free(bplan);
+            bplan = 0;
         }
         if ( bin ) fftw_free(bin);
+        bin = 0;
         if ( bout ) fftw_free(bout);
+        bout = 0;
     }
 
     if ( !storedCount ) {
